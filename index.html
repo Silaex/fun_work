@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Document</title>
+		<script charset="utf-8" src="./main.js" defer></script>
+		<style type="text/css" media="screen">
+		
+			@font-face {
+				font-family: "Temple OS";
+				src: 	url("./res/temple_font.ttf") format("truetype"),
+						url("./res/temple_font.woff") format("woff"),
+						url("./res/temple_font.otf") format("opentype");
+			}
+
+			html
+			{
+				height: 100%;
+				background: black;
+			}
+			
+			body
+			{
+				min-height: 100%;
+				margin: 0;
+				position: relative;
+				font-family: "Temple OS";
+				font-size: 13px;
+				color: white;
+				word-break: break-all;
+			}
+			
+			#background
+			{
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background: url("./res/temple_girl.png");
+				background-size: contain;
+				opacity: calc(1/4);
+				z-index: -5;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="background"></div>
+		<div id="result"></div>
+	</body>
+</html>
