@@ -1,3 +1,7 @@
+## Warning
+Yes the code can be a lot easier to read and more efficient. But its one of the goal of my project to code lot of useless things that can make the code unreadable for someone else than me.
+But if you find it nice, I appreciate it
+
 # fun_work
 Having fun 
 
