@@ -18,4 +18,4 @@ Thanks :-)
 Programming is to enjoy and building things you want.
 Not doing things that MUST be useful and bringing money... 
 
-If you're a company: I would be happy to help if the project that you want me to work on is as interesting and challenging (of/that/than??? idk) my english
+If you're a company: I would be happy to help if the project that you want me to work on is as interesting and challenging as my english
