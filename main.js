@@ -3,6 +3,7 @@
 */
 
 const Log = console.log;
+const ErrorLog = console.error;
 const Table = console.table;
 const Result_Div = document.getElementById("result");
 const _u12bits = 4096;
@@ -11,6 +12,18 @@ const Memory = {};
 function DisplayResult(Result)
 { 
 	Result_Div.innerHTML = Result;
+}
+
+function ObjectLog(Obj)
+{
+	if(InstanceOf(Object, Obj))
+	{
+		return JSON.stringify(Obj);
+	}
+	else
+	{
+		Debug.Error(new Error_Class("ObjectLog", "You must give an Object!"));
+	}
 }
 
 function For(Begin_Index, Condition, Increment, Callback)
@@ -39,13 +52,26 @@ function TypeOf(Type, Value)
 		}
 		return typeof Value === Type.toLowerCase();
 	}
-	throw Error("The Type must be in a string format (use InstanceOf for everything else)");
+	Debug.Error(new Error_Class("InstanceOfInit", "The Type must be in a string format (use InstanceOf for everything else)"));
 }
 
 function InstanceOf(Instance, Value)
 {
 	try
 	{
+		if (Instance === Object)
+		{
+			// We check if the Value is not an Array or a Function
+			// because it can be recognized as an Object
+			if(!TypeOf("Array", Value) && !TypeOf("Function", Value))
+			{
+				return TypeOf("Object", Value);
+			}
+			else if(TypeOf("Array", Value))
+			{
+				return;
+			}
+		}
 		if(Instance === Array)
 		{
 			return TypeOf(Instance.name, Value);
@@ -59,18 +85,22 @@ function InstanceOf(Instance, Value)
 	}
 	catch(e)
 	{
-		throw Error(e);
+		Debug.Error(new Error_Class("InstanceOfInit", e.message));
 	}
 }
 
 // Useful to check if its the good Type/Instance and init the variable
 function InstanceOfInit(Instance, Value)
 {
+	if(Value === null || Value === undefined)
+	{
+		
+	}
 	if(InstanceOf(Instance, Value))
 	{
 		return Value;
 	}
-	throw Error("Its not the Type/Instance wanted!");
+	Debug.Error(new Error_Class("InstanceOfInit", "Its not the Type/Instance wanted!"));
 }
 
 function InstancesOfInit(Instances, Data)
@@ -110,13 +140,13 @@ class Var
 	#Address = null;
 	constructor(Type, Value)
 	{
-		this.#Type = InstancesOfInit([Object], Type);
+		this.#Type = InstanceOfInit(Object, Type);
 		this.#Value = InstanceOfInit(Type, Value);
 		this.#Address = DecimalToHex(Object.keys(Memory).length);
 		Memory[this.#Address] = this;
 	}
 	
-	set _V(Value)
+	set _(Value)
 	{
 		if(InstanceOf(this.#Type, Value))
 		{
@@ -126,7 +156,7 @@ class Var
 		throw Error(`Trying to set a ${this.#Type.name} variable with another type`);
 	}
 	
-	get _V()
+	get _()
 	{
 		return this.#Value;
 	}
@@ -136,7 +166,7 @@ class Var
 		return this.#Type.name;
 	}
 	
-	get _A()
+	get _$()
 	{
 		return this.#Address;
 	}
@@ -145,43 +175,98 @@ class Var
 // ????WTF????
 class Memory_Pointer
 {
-	#Address = null;
+	#Ptr_Address = null;
+	#Var_Address = null;
 	constructor(Variable)
 	{
 		if(InstanceOf(Var, Variable))
 		{
-			this.#Address = Variable._A;
-			Memory[Object.keys(Memory).length] = this;
+			this.#Var_Address = Variable._$;
+			this.#Ptr_Address = DecimalToHex(Object.keys(Memory).length);
+			Memory[this.#Ptr_Address] = this;
 		}
 		else
 		{
-			
+			Debug.Error(new Error_Class("Memory_Pointer", "You must give a Var variable"));
 		}
+	}
+	
+	get _()
+	{
+		return Memory[this.#Ptr_Address];
 	}
 	
 	get _$()
 	{
-		return Memory[this.#Address];
+		return this.#Var_Address;
 	}
 }
 
-class Debug_Log
+class Error_Class
 {
-	#Logs = [];
+	// Error_Hint means in which function or class it has been called
+	#Error_Hint;
+	#Message;
+	#Stack;
+	constructor(Error_Hint="None", Message="None")
+	{
+		this.#Error_Hint 	= InstanceOfInit(String, Error_Hint);
+		this.#Message 		= InstanceOfInit(String, Message);
+		this.#Stack 		= new Error().stack;
+	}
 	
-	static get A()
+	get Error_Hint()
 	{
-		return " test ";
+		return this.#Error_Hint;
+	}
+	
+	get Message()
+	{
+		return this.#Message;
+	}
+	
+	get Stack()
+	{
+		return this.#Stack;
 	}
 }
 
-class Array
+class Debug
 {
-	#Size = 0;
-	#length = 0;
-	constructor(Size)
+	static #Logs = new Var(Array, []);
+	static #Errors = new Var(Array, []);
+	
+	static Error(_Err)
 	{
-		this.#Size = Size;
+		if(InstanceOf(Error_Class, _Err))
+		{
+			Debug.#Errors._.push(_Err);
+			
+			{
+				// Here we prepare the error to be printed and save it in "Logs" array
+				const Formatted_Error_String = new Var(String, "");
+				Formatted_Error_String._ += `[Error_Hint]: ${_Err.Error_Hint}\n`;
+				Formatted_Error_String._ += `[Message]: ${_Err.Message}\n\n`;
+				Formatted_Error_String._ += `${_Err.Stack}`;
+				Formatted_Error_String._ += "------------------------------\n";
+				Debug.#Logs._.push(Formatted_Error_String._);
+				Formatted_Error_String._ = "";
+			}
+		}
+	}
+	
+	static get Errors()
+	{	
+		return this.#Errors._;
+	}
+	
+	static get Log()
+	{
+		if(Debug.#Logs._.length)
+		{
+			ErrorLog(...Debug.#Logs._);
+		}
+		return;
 	}
 }
 
@@ -255,14 +340,17 @@ function BinaryToHex(Binary)
 
 {
 	const Buff = new Var(Object, {});
-	For(0, 256, 1, (It) =>
+	For(0, 20, 1, (It) =>
 	{
 		const V = new Var(Number, It);
-		Buff._V[V._A] = V._V;
+		Buff._[V._$] = V._;
 	});
 	
-	const P_V = new Memory_Pointer("asfoiahf");
+	const P_ = new Memory_Pointer(Buff);
 	
-	DisplayResult(JSON.stringify(Buff._V));
-	Log(Debug_Log.A);
+	DisplayResult(ObjectLog(Memory));
+	Log(P_);
 }
+
+// Leave it here! Like this we can handle the errors!
+Debug.Log;
