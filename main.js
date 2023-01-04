@@ -22,7 +22,7 @@ function ObjectLog(Obj)
 	}
 	else
 	{
-		Debug.Error(new Error_Class("ObjectLog", "You must give an Object!"));
+		Debug.Error(ObjectLog, "You must give an Object!");
 	}
 }
 
@@ -52,7 +52,7 @@ function TypeOf(Type, Value)
 		}
 		return typeof Value === Type.toLowerCase();
 	}
-	Debug.Error(new Error_Class("InstanceOfInit", "The Type must be in a string format (use InstanceOf for everything else)"));
+	throw Error("The Type must be in a string format (use InstanceOf for everything else)");
 }
 
 function InstanceOf(Instance, Value)
@@ -85,7 +85,7 @@ function InstanceOf(Instance, Value)
 	}
 	catch(e)
 	{
-		Debug.Error(new Error_Class("InstanceOfInit", e.message));
+		throw Error(e.message);
 	}
 }
 
@@ -94,13 +94,14 @@ function InstanceOfInit(Instance, Value)
 {
 	if(Value === null || Value === undefined)
 	{
-		
+		Debug.Error(InstanceOfInit, "The value is not defined or null!");
+		return;
 	}
 	if(InstanceOf(Instance, Value))
 	{
 		return Value;
 	}
-	Debug.Error(new Error_Class("InstanceOfInit", "Its not the Type/Instance wanted!"));
+	throw Error("Its not the Type/Instance wanted!");
 }
 
 function InstancesOfInit(Instances, Data)
@@ -113,7 +114,7 @@ function InstancesOfInit(Instances, Data)
 	{
 		return Data;
 	}
-	throw Error(`No instance matched!`);
+	throw Error("No instance matched!");
 }
 
 function InstancesOf(Instances, Value)
@@ -123,7 +124,7 @@ function InstancesOf(Instances, Value)
 		return For(0, Instances.length, 1, (It, Exit) =>
 		{
 			const Instance = Instances[It];
-			if (Instance === Value || InstanceOf(Instance, Value))
+			if (InstanceOf(Instance, Value))
 			{
 				Exit = true;
 				return true;
@@ -131,6 +132,35 @@ function InstancesOf(Instances, Value)
 		});
 	}
 	return false;
+}
+
+function FreeMemory(Data)
+{
+	if(InstanceOf(Ptr, Data) || InstanceOf(Var, Data))
+	{
+		Memory[Data._$] = null;
+		delete Memory[Data._$];
+		return;
+	}
+	Debug.Error(FreeMemory, "You did not give a Var or a Ptr");
+}
+
+function AllocateMemory(Data)
+{
+	if(InstanceOf(Ptr, Data) || InstanceOf(Var, Data))
+	{
+		if(Object.keys(Memory).length > _u12bits)
+		{
+			Debug.Error(AllocateMemory, "Not enough memory!");
+			// @TODO: Crash here
+		}
+		// Here the variable is not used with "new Var()" because
+		// its a system function.
+		const Memory_Address = DecimalToHex(Object.keys(Memory).length);
+		Memory[Memory_Address] = Data;
+		return;
+	}
+	Debug.Error(FreeMemory, "You did not give a Var or a Ptr");
 }
 
 class Var
@@ -173,61 +203,32 @@ class Var
 }
 
 // ????WTF????
-class Memory_Pointer
+class Ptr
 {
 	#Ptr_Address = null;
 	#Var_Address = null;
-	constructor(Variable)
+	constructor(Data)
 	{
-		if(InstanceOf(Var, Variable))
+		if(InstanceOf(Var, Data) || InstanceOf(Ptr, Data))
 		{
-			this.#Var_Address = Variable._$;
+			this.#Var_Address = Data._$;
 			this.#Ptr_Address = DecimalToHex(Object.keys(Memory).length);
 			Memory[this.#Ptr_Address] = this;
 		}
 		else
 		{
-			Debug.Error(new Error_Class("Memory_Pointer", "You must give a Var variable"));
+			Debug.Error(Ptr, "You must give a Var or Ptr data");
 		}
 	}
 	
 	get _()
 	{
-		return Memory[this.#Ptr_Address];
+		return Memory[this.#Var_Address];
 	}
 	
 	get _$()
 	{
-		return this.#Var_Address;
-	}
-}
-
-class Error_Class
-{
-	// Error_Hint means in which function or class it has been called
-	#Error_Hint;
-	#Message;
-	#Stack;
-	constructor(Error_Hint="None", Message="None")
-	{
-		this.#Error_Hint 	= InstanceOfInit(String, Error_Hint);
-		this.#Message 		= InstanceOfInit(String, Message);
-		this.#Stack 		= new Error().stack;
-	}
-	
-	get Error_Hint()
-	{
-		return this.#Error_Hint;
-	}
-	
-	get Message()
-	{
-		return this.#Message;
-	}
-	
-	get Stack()
-	{
-		return this.#Stack;
+		return this.#Ptr_Address;
 	}
 }
 
@@ -236,22 +237,24 @@ class Debug
 	static #Logs = new Var(Array, []);
 	static #Errors = new Var(Array, []);
 	
-	static Error(_Err)
+	static Error(Error_Hint, Message)
 	{
-		if(InstanceOf(Error_Class, _Err))
+		const _Error = {
+			Error_Hint: InstancesOfInit([Object, Function, String], Error_Hint),
+			Message: InstanceOfInit(String, Message),
+			Stack: new Error().stack
+		};
+		
+		Debug.#Errors._.push(_Error);
+		
 		{
-			Debug.#Errors._.push(_Err);
-			
-			{
-				// Here we prepare the error to be printed and save it in "Logs" array
-				const Formatted_Error_String = new Var(String, "");
-				Formatted_Error_String._ += `[Error_Hint]: ${_Err.Error_Hint}\n`;
-				Formatted_Error_String._ += `[Message]: ${_Err.Message}\n\n`;
-				Formatted_Error_String._ += `${_Err.Stack}`;
-				Formatted_Error_String._ += "------------------------------\n";
-				Debug.#Logs._.push(Formatted_Error_String._);
-				Formatted_Error_String._ = "";
-			}
+			// Here we prepare the error to be printed and save it in "Logs" array
+			const Formatted_Error_String = "";
+			Formatted_Error_String._ += `[Error_Hint]: ${_Error.Error_Hint.name}\n`;
+			Formatted_Error_String._ += `[Message]: ${_Error.Message}\n\n`;
+			Formatted_Error_String._ += `${_Error.Stack}`;
+			Formatted_Error_String._ += "------------------------------\n";
+			Debug.#Logs._.push(Formatted_Error_String._);
 		}
 	}
 	
@@ -345,11 +348,6 @@ function BinaryToHex(Binary)
 		const V = new Var(Number, It);
 		Buff._[V._$] = V._;
 	});
-	
-	const P_ = new Memory_Pointer(Buff);
-	
-	DisplayResult(ObjectLog(Memory));
-	Log(P_);
 }
 
 // Leave it here! Like this we can handle the errors!
