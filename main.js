@@ -6,9 +6,8 @@ const Log = console.log;
 const ErrorLog = console.error;
 const Table = console.table;
 const Result_Div = document.getElementById("result");
-const MEMORY_LIMIT = 2**32;
+const MEMORY_LIMIT = 2**16;
 const Memory = {};
-
 
 const CHAR_SIZE 	= [-128, 			127];
 const UCHAR_SIZE 	= [0, 				255];
@@ -16,6 +15,37 @@ const INT_SIZE 		= [-2_147_483_648, 	2_147_483_647];
 const UINT_SIZE 	= [0, 				4_294_967_295];
 const SHORT_SIZE 	= [-32_768, 		32_767];
 const USHORT_SIZE 	= [0, 				65,535];
+
+const CHAR_BYTE_SIZE 	= 1;
+const INT_BYTE_SIZE 	= 4;
+const SHORT_BYTE_SIZE 	= 2;
+
+class INT
+{
+	#Byte_Size = 4;
+	get Size()
+	{
+		return this.#Byte_Size;
+	}
+}
+
+class CHAR
+{
+	#Byte_Size = 1;
+	get Size()
+	{
+		return this.#Byte_Size;
+	}
+}
+
+class SHORT
+{
+	#Byte_Size = 2;
+	get Size()
+	{
+		return this.#Byte_Size;
+	}
+}
 
 const Float = -56.7;
 class Bits
@@ -29,6 +59,29 @@ class Bits
 	get Bits()
 	{
 		return this.#Bits;
+	}
+}
+
+class Byte
+{
+	#Binary
+	constructor(Binary="00000000")
+	{
+		if(InstanceOf(String, Binary) && Binary.length === 8)
+		{
+			this.#Binary = Binary;
+		}
+	}
+	get _()
+	{
+		return this.#Binary;
+	}
+	set _(Binary)
+	{
+		if(InstanceOf(String, Binary) && Binary.length === 8)
+		{
+			this.#Binary = Binary;
+		}
 	}
 }
 const Float32_P = new Bits(23);
@@ -256,12 +309,12 @@ function InstanceOf(Instance, Value)
 // Useful to check if its the good Type/Instance and init the variable
 function InstanceOfInit(Instance, Value)
 {
-	if(Value === null || Value === undefined)
+	if(Value === undefined)
 	{
-		Debug.Error(InstanceOfInit, "The value is not defined or null!");
+		Debug.Error(InstanceOfInit, "The value is not defined!");
 		return;
 	}
-	if(InstanceOf(Instance, Value))
+	if(InstanceOf(Instance, Value) || Value === null)
 	{
 		return Value;
 	}
@@ -270,11 +323,11 @@ function InstanceOfInit(Instance, Value)
 
 function InstancesOfInit(Instances, Data)
 {
-	if(Data === undefined || Data === null)
+	if(Data === undefined)
 	{
 		throw Error(`Data is not set! [Data:${Data}]`);
 	}
-	if(InstancesOf(Instances, Data))
+	if(InstancesOf(Instances, Data) || Data === null)
 	{
 		return Data;
 	}
@@ -326,6 +379,47 @@ function AllocateMemory(Data)
 	Debug.Error(FreeMemory, "You did not give a Var or a Ptr");
 }
 
+class Debug
+{
+	static #Logs = [];
+	static #Errors = [];
+	
+	static Error(Error_Hint, Message)
+	{
+		const _Error = {
+			Error_Hint: InstancesOfInit([Object, Function, String], Error_Hint),
+			Message: InstanceOfInit(String, Message),
+			Stack: new Error().stack
+		};
+		
+		Debug.#Errors.push(_Error);
+		
+		{
+			// Here we prepare the error to be printed and save it in "Logs" array
+			let Formatted_Error_String = "";
+			Formatted_Error_String += `[Error_Hint]: ${_Error.Error_Hint.name}\n`;
+			Formatted_Error_String += `[Message]: ${_Error.Message}\n\n`;
+			Formatted_Error_String += `${_Error.Stack}`;
+			Formatted_Error_String += "------------------------------\n";
+			Debug.#Logs.push(Formatted_Error_String);
+		}
+	}
+	
+	static get Errors()
+	{	
+		return this.#Errors;
+	}
+	
+	static get Log()
+	{
+		if(Debug.#Logs.length)
+		{
+			ErrorLog(...Debug.#Logs);
+		}
+		return;
+	}
+}
+
 class Var
 {
 	#Type;
@@ -333,7 +427,7 @@ class Var
 	#Address = null;
 	constructor(Type, Value)
 	{
-		this.#Type = InstanceOfInit(Function, Type);
+		this.#Type = ([INT, SHORT, CHAR].includes(Type)) ? Type : Debug.Error(Var, "Unknown Type");
 		this.#Value = InstanceOfInit(Type, Value);
 		this.#Address = DecimalToHex(Object.keys(Memory).length);
 		Memory[this.#Address] = this;
@@ -392,47 +486,6 @@ class Ptr
 	get _$()
 	{
 		return this.#Ptr_Address;
-	}
-}
-
-class Debug
-{
-	static #Logs = new Var(Array, []);
-	static #Errors = new Var(Array, []);
-	
-	static Error(Error_Hint, Message)
-	{
-		const _Error = {
-			Error_Hint: InstancesOfInit([Object, Function, String], Error_Hint),
-			Message: InstanceOfInit(String, Message),
-			Stack: new Error().stack
-		};
-		
-		Debug.#Errors._.push(_Error);
-		
-		{
-			// Here we prepare the error to be printed and save it in "Logs" array
-			let Formatted_Error_String = "";
-			Formatted_Error_String += `[Error_Hint]: ${_Error.Error_Hint.name}\n`;
-			Formatted_Error_String += `[Message]: ${_Error.Message}\n\n`;
-			Formatted_Error_String += `${_Error.Stack}`;
-			Formatted_Error_String += "------------------------------\n";
-			Debug.#Logs._.push(Formatted_Error_String);
-		}
-	}
-	
-	static get Errors()
-	{	
-		return this.#Errors._;
-	}
-	
-	static get Log()
-	{
-		if(Debug.#Logs._.length)
-		{
-			ErrorLog(...Debug.#Logs._);
-		}
-		return;
 	}
 }
 
@@ -510,14 +563,54 @@ function BinaryToHex(Binary)
 }
 
 {
-	const Buff = new Var(Object, {});
-	For(0, 20, 1, (It) =>
-	{
-		const V = new Var(Number, It);
-		Buff._[V._$] = V._;
-	});
-	
 	BinaryToFloat(FloatToBinary(Float, Float32_P), Float32_P);
+	
+	class Memory_Chunk
+	{
+		#Prev
+		#Next
+		#Address
+		#Binary
+		constructor(Prev, Address, Binary, Next)
+		{
+			this.#Prev 		= InstanceOfInit(Memory_Chunk, Prev);
+			if(Prev !== null) Prev.Next = this;
+			this.#Address	= InstanceOfInit(String, Address);
+			this.#Binary	= InstanceOfInit(Byte, Binary);
+			this.#Next		= InstanceOfInit(Memory_Chunk, Next);
+		}
+		get _$()
+		{
+			return this.#Address;
+		}
+		set _(Bin)
+		{
+			this.#Binary = InstanceOfInit(Byte, Bin);
+		}
+		get _()
+		{
+			return this.#Binary;
+		}
+		get Next()
+		{
+			return this.#Next;
+		}
+		set Next(M)
+		{
+			this.#Next = InstanceOfInit(Memory_Chunk, M);
+		}
+		get Prev()
+		{
+			return this.#Prev;
+		}
+	}
+	For(0, MEMORY_LIMIT, 8, (It) =>
+	{
+		const Address = DecimalToHex(It);
+		const Prev_Address = DecimalToHex(It-8);
+		Memory[Address] = new Memory_Chunk(It===0 ? null : Memory[Prev_Address], Address, new Byte(), null);
+	});
+	Log(Memory);
 }
 
 // Leave it here! Like this we can handle the errors!
