@@ -100,7 +100,9 @@ function FloatToBinary(Nb, Float_P)
 
 function BinaryToFloat(Float_Bin, Precision)
 {
-	if(InstanceOf(String, Float_Bin) && InstanceOf(Bits, Precision))
+	if(InstanceOf(String, Float_Bin) 
+		&& InstanceOf(Bits, Precision)
+	)
 	{
 		let Final_Float = 0;
 		const Negative_Bit = parseInt(Float_Bin[0]) ? -1 : 1;
@@ -108,19 +110,20 @@ function BinaryToFloat(Float_Bin, Precision)
 		let Mantissa= "";
 		let Exponent_Add = 0;
 		let WN_Offset = 0;
+		const Float_Bin_Length = Float_Bin.length;
 		
 		if(Precision === Float32_P)
 		{
 			Exponent_Add = 9;
 			Exponent = Float_Bin.substring(1, Exponent_Add);
-			Mantissa = Float_Bin.substring(Exponent_Add);
+			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision.Bits);
 			WN_Offset = BinaryToDecimal(Exponent) - 127;
 		}
 		else if(Precision === Float64_P)
 		{
 			Exponent_Add = 12;
 			Exponent = Float_Bin.substring(1, Exponent_Add);
-			Mantissa = Float_Bin.substring(Exponent_Add);
+			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision.Bits);
 			WN_Offset = BinaryToDecimal(Exponent) - 1023;
 		}
 		else
@@ -176,21 +179,18 @@ function For(Begin_Index, Max_Count, Increment, Callback)
 			null,
 			[
 				Index,
-				function () 
-				{ 
-					return {
-						Now(Value)
-						{ 
-							Callback_Value = Value;
-						},
-						End(Value)
+				{
+					Now(Value)
+					{ 
+						Callback_Value = Value;
+					},
+					End(Value)
+					{
+						if(Index === Max_Count-1)
 						{
-							if(Index === Max_Count-1)
-							{
-								Callback_Value = Value;
-							}
+							Callback_Value = Value;
 						}
-					} 
+					}
 				}
 			]
 		); 
