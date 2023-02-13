@@ -6,92 +6,19 @@ const Log = console.log;
 const ErrorLog = console.error;
 const Table = console.table;
 const Result_Div = document.getElementById("result");
-const MEMORY_LIMIT = 2**16;
+const MEMORY_LIMIT_POWER = 32;
+const MEMORY_LIMIT = 2**MEMORY_LIMIT_POWER;
 const Memory = {};
+const Front_Memory = {};
+let Stack_Size = 0;
 
-const CHAR_SIZE 	= [-128, 			127];
-const UCHAR_SIZE 	= [0, 				255];
-const INT_SIZE 		= [-2_147_483_648, 	2_147_483_647];
-const UINT_SIZE 	= [0, 				4_294_967_295];
-const SHORT_SIZE 	= [-32_768, 		32_767];
-const USHORT_SIZE 	= [0, 				65,535];
+const Float32_P = 23;
+const Float64_P = 52
 
-const CHAR_BYTE_SIZE 	= 1;
-const INT_BYTE_SIZE 	= 4;
-const SHORT_BYTE_SIZE 	= 2;
-
-class INT
+function FloatToBinary(Nb, Precision)
 {
-	#Byte_Size = 4;
-	get Size()
+	if(InstanceOf(Number, Nb) && InstanceOf(Number, Precision))
 	{
-		return this.#Byte_Size;
-	}
-}
-
-class CHAR
-{
-	#Byte_Size = 1;
-	get Size()
-	{
-		return this.#Byte_Size;
-	}
-}
-
-class SHORT
-{
-	#Byte_Size = 2;
-	get Size()
-	{
-		return this.#Byte_Size;
-	}
-}
-
-const Float = -56.7;
-class Bits
-{
-	#Bits;
-	constructor(Bits_Number)
-	{
-		this.#Bits = InstanceOfInit(Number, Bits_Number);
-	}
-	
-	get Bits()
-	{
-		return this.#Bits;
-	}
-}
-
-class Byte
-{
-	#Binary
-	constructor(Binary="00000000")
-	{
-		if(InstanceOf(String, Binary) && Binary.length === 8)
-		{
-			this.#Binary = Binary;
-		}
-	}
-	get _()
-	{
-		return this.#Binary;
-	}
-	set _(Binary)
-	{
-		if(InstanceOf(String, Binary) && Binary.length === 8)
-		{
-			this.#Binary = Binary;
-		}
-	}
-}
-const Float32_P = new Bits(23);
-const Float64_P = new Bits(52);
-
-function FloatToBinary(Nb, Float_P)
-{
-	if(InstanceOf(Number, Nb) && InstanceOf(Bits, Float_P))
-	{
-		const Precision = Float_P.Bits;
 		let Final_Binary = "";
 		const Integer_Part = parseInt(Nb);
 		// Would be nice to not use "Math.abs()"
@@ -136,7 +63,7 @@ function FloatToBinary(Nb, Float_P)
 		const Move_Needed = Joined_Parts.split(".")[0].length - 1;
 		
 		let Exponent = DecimalToBin(127+Move_Needed);
-		if (Float_P === Float64_P)
+		if (Precision === Float64_P)
 		{
 			Exponent = DecimalToBin(1023+Move_Needed);
 		}
@@ -154,7 +81,7 @@ function FloatToBinary(Nb, Float_P)
 function BinaryToFloat(Float_Bin, Precision)
 {
 	if(InstanceOf(String, Float_Bin) 
-		&& InstanceOf(Bits, Precision)
+		&& InstanceOf(Number, Precision)
 	)
 	{
 		let Final_Float = 0;
@@ -169,14 +96,14 @@ function BinaryToFloat(Float_Bin, Precision)
 		{
 			Exponent_Add = 9;
 			Exponent = Float_Bin.substring(1, Exponent_Add);
-			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision.Bits);
+			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision);
 			WN_Offset = BinaryToDecimal(Exponent) - 127;
 		}
 		else if(Precision === Float64_P)
 		{
 			Exponent_Add = 12;
 			Exponent = Float_Bin.substring(1, Exponent_Add);
-			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision.Bits);
+			Mantissa = Float_Bin.substring(Exponent_Add, Exponent_Add+Precision);
 			WN_Offset = BinaryToDecimal(Exponent) - 1023;
 		}
 		else
@@ -208,6 +135,11 @@ function BinaryToFloat(Float_Bin, Precision)
 function DisplayResult(Result)
 { 
 	Result_Div.innerHTML = Result;
+}
+
+function DisplayAdd(Add)
+{ 
+	Result_Div.innerHTML += Add;
 }
 
 function ObjectLog(Obj)
@@ -350,35 +282,6 @@ function InstancesOf(Instances, Value)
 	return false;
 }
 
-function FreeMemory(Data)
-{
-	if(InstanceOf(Ptr, Data) || InstanceOf(Var, Data))
-	{
-		Memory[Data._$] = null;
-		delete Memory[Data._$];
-		return;
-	}
-	Debug.Error(FreeMemory, "You did not give a Var or a Ptr");
-}
-
-function AllocateMemory(Data)
-{
-	if(InstanceOf(Ptr, Data) || InstanceOf(Var, Data))
-	{
-		if(Object.keys(Memory).length > _u12bits)
-		{
-			Debug.Error(AllocateMemory, "Not enough memory!");
-			// @TODO: Crash here
-		}
-		// Here the variable is not used with "new Var()" because
-		// its a system function.
-		const Memory_Address = DecimalToHex(Object.keys(Memory).length);
-		Memory[Memory_Address] = Data;
-		return;
-	}
-	Debug.Error(FreeMemory, "You did not give a Var or a Ptr");
-}
-
 class Debug
 {
 	static #Logs = [];
@@ -420,82 +323,13 @@ class Debug
 	}
 }
 
-class Var
-{
-	#Type;
-	#Value = undefined;
-	#Address = null;
-	constructor(Type, Value)
-	{
-		this.#Type = ([INT, SHORT, CHAR].includes(Type)) ? Type : Debug.Error(Var, "Unknown Type");
-		this.#Value = InstanceOfInit(Type, Value);
-		this.#Address = DecimalToHex(Object.keys(Memory).length);
-		Memory[this.#Address] = this;
-	}
-	
-	set _(Value)
-	{
-		if(InstanceOf(this.#Type, Value))
-		{
-			this.#Value = Value;
-			return;
-		}
-		throw Error(`Trying to set a ${this.#Type.name} variable with another type`);
-	}
-	
-	get _()
-	{
-		return this.#Value;
-	}
-	
-	get _T()
-	{
-		return this.#Type.name;
-	}
-	
-	get _$()
-	{
-		return this.#Address;
-	}
-}
-
-// ????WTF????
-class Ptr
-{
-	#Ptr_Address = null;
-	#Var_Address = null;
-	constructor(Data)
-	{
-		if(InstanceOf(Var, Data) || InstanceOf(Ptr, Data))
-		{
-			this.#Var_Address = Data._$;
-			this.#Ptr_Address = DecimalToHex(Object.keys(Memory).length);
-			Memory[this.#Ptr_Address] = this;
-		}
-		else
-		{
-			Debug.Error(Ptr, "You must give a Var or Ptr data");
-		}
-	}
-	
-	get _()
-	{
-		return Memory[this.#Var_Address];
-	}
-	
-	get _$()
-	{
-		return this.#Ptr_Address;
-	}
-}
-
-function DecimalToHex(Decimal)
+function DecimalToHex(Decimal, Size)
 {
 	const Binary = DecimalToBin(Decimal);
-	return BinaryToHex(Binary);
+	return BinaryToHex(Binary, Size);
 }
 
-function DecimalToBin(Decimal)
+function DecimalToBin(Decimal, Size /* optional */)
 {
 	let Binary = [];
 	let Quotient = Decimal;
@@ -510,6 +344,16 @@ function DecimalToBin(Decimal)
 	{
 		Binary.push(0);
 	}
+
+	if(Size > Binary.length)
+	{
+		const Length_Diff = Size - Binary.length;
+
+		For(0, Length_Diff, 1, (It) =>
+		{
+			Binary.push(0);
+		});
+	}
 	
 	return Binary.reverse().join("");
 }
@@ -519,7 +363,7 @@ function BinaryToDecimal(Binary)
 	return parseInt(BinaryToHex(Binary));
 }
 
-function BinaryToHex(Binary)
+function BinaryToHex(Binary, Size /* optional */)
 {
 	const Quartets = [];
 	const Binary_Copy = [...Binary].reverse().join("");
@@ -558,60 +402,382 @@ function BinaryToHex(Binary)
 			Hex += Quartet_Sum;
 		}
 	});
+
+	if(Size > Hex.length)
+	{
+		const Length_Diff = Size - Hex.length;
+
+		For(0, Length_Diff, 1, (It) =>
+		{
+			Hex += "0";
+		});
+	}
 	
 	return "0x" + [...Hex].reverse().join("");
 }
 
+const CHAR_SIZE 	= { Min: -128, 				Max: 127 			};
+const UCHAR_SIZE 	= { Min: 0, 				Max: 255 			};
+const INT_SIZE 		= { Min: -2_147_483_648, 	Max: 2_147_483_647 	};
+const UINT_SIZE 	= { Min: 0, 				Max: 4_294_967_295 	};
+const SHORT_SIZE 	= { Min: -32_768, 			Max: 32_767 		};
+const USHORT_SIZE 	= { Min: 0, 				Max: 65_535 		};
+
+const CHAR_BITS_SIZE 	= 8;
+const SHORT_BITS_SIZE 	= 16;
+const INT_BITS_SIZE 	= 32;
+
+let Memory_Write_Cursor = 0;
+
+function FrontMemoryAdd(Var)
 {
-	BinaryToFloat(FloatToBinary(Float, Float32_P), Float32_P);
-	
-	class Memory_Chunk
+	if(!InstancesOf([CHAR, SHORT, INT], Var))
 	{
-		#Prev
-		#Next
-		#Address
-		#Binary
-		constructor(Prev, Address, Binary, Next)
-		{
-			this.#Prev 		= InstanceOfInit(Memory_Chunk, Prev);
-			if(Prev !== null) Prev.Next = this;
-			this.#Address	= InstanceOfInit(String, Address);
-			this.#Binary	= InstanceOfInit(Byte, Binary);
-			this.#Next		= InstanceOfInit(Memory_Chunk, Next);
-		}
-		get _$()
-		{
-			return this.#Address;
-		}
-		set _(Bin)
-		{
-			this.#Binary = InstanceOfInit(Byte, Bin);
-		}
-		get _()
-		{
-			return this.#Binary;
-		}
-		get Next()
-		{
-			return this.#Next;
-		}
-		set Next(M)
-		{
-			this.#Next = InstanceOfInit(Memory_Chunk, M);
-		}
-		get Prev()
-		{
-			return this.#Prev;
-		}
+		Debug.Error(FrontMemoryAdd, "[CHAR, SHORT, INT] One of this Var types please THANKS!");
+		return;
 	}
-	For(0, MEMORY_LIMIT, 8, (It) =>
-	{
-		const Address = DecimalToHex(It);
-		const Prev_Address = DecimalToHex(It-8);
-		Memory[Address] = new Memory_Chunk(It===0 ? null : Memory[Prev_Address], Address, new Byte(), null);
-	});
-	Log(Memory);
+	
+	Front_Memory[Var._$] = Var;
 }
 
-// Leave it here! Like this we can handle the errors!
-Debug.Log;
+class CHAR {
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
+	{
+		if(Value > CHAR_SIZE.Max || Value < CHAR_SIZE.Min)
+		{
+			Debug.Error(CHAR, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, CHAR_BITS_SIZE-1) : "0" + DecimalToBin(Value, CHAR_BITS_SIZE-1);
+		this.#Address = MAddress;
+	}
+	get _()
+	{
+		return this.#Value;
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= CHAR_SIZE.Max && Value >= CHAR_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, CHAR_BITS_SIZE-1) : "0" + DecimalToBin(Value, CHAR_BITS_SIZE-1);
+			return this.#Value;
+		}
+		Debug.Error(CHAR, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return CHAR_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+};
+class UCHAR {
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
+	{
+		if(Value > UCHAR_SIZE.Max || Value < UCHAR_SIZE.Min)
+		{
+			Debug.Error(UCHAR, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary =  DecimalToBin(Value, CHAR_BITS_SIZE);
+		this.#Address = MAddress;
+	}
+	get _()
+	{
+		return this.#Value;
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= UCHAR_SIZE.Max && Value >= UCHAR_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary =  DecimalToBin(Value, CHAR_BITS_SIZE);
+			return this.#Value;
+		}
+		Debug.Error(UCHAR, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return CHAR_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+};
+class SHORT {
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
+	{
+		if(Value > SHORT_SIZE.Max || Value < SHORT_SIZE.Min)
+		{
+			Debug.Error(SHORT, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, SHORT_BITS_SIZE-1) : "0" + DecimalToBin(Value, SHORT_BITS_SIZE-1);
+		this.#Address = MAddress;
+	}
+	get _()
+	{
+		return this.#Value;
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= SHORT_SIZE.Max && Value >= SHORT_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, SHORT_BITS_SIZE-1) : "0" + DecimalToBin(Value, SHORT_BITS_SIZE-1);
+			return this.#Value;
+		}
+		Debug.Error(SHORT, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return SHORT_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+};
+class INT {
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
+	{
+		if(Value > INT_SIZE.Max || Value < INT_SIZE.Min)
+		{
+			Debug.Error(INT, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, INT_BITS_SIZE-1) : "0" + DecimalToBin(Value, INT_BITS_SIZE-1);
+		this.#Address = MAddress;
+	}
+	get _()
+	{
+		return this.#Value;
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= INT_SIZE.Max && Value >= INT_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, INT_BITS_SIZE-1) : "0" + DecimalToBin(Value, INT_BITS_SIZE-1);
+			return this.#Value;
+		}
+		Debug.Error(INT, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return INT_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+};
+// This is what will store characters used depending on their CharCode
+// Example: { 97: "a" }
+// So it can be used when we access it from the binary memory
+const CharactersMemory = {};
+class STRING {
+	#Value
+	#Address
+	#Length
+	#Binary
+	constructor(Value="", Length=null)
+	{
+		if(!(InstanceOf(String, Value)) || !(InstanceOf(Number, Length)) || Length < 0 || Value.length > Length || Value.length < 0)
+		{
+			Debug.Error(STRING, "Wrong Initialization");
+			return;
+		}
+		this.#Length = Length;
+		this.#Value = Value;
+		this.#Binary = null;
+		if(Value.charCodeAt(0))
+		{
+			this.#Address = UChar(Value.charCodeAt(0))._$;
+			CharactersMemory[Value.charCodeAt(0)] = Value[0];
+		}
+		else
+		{
+			this.#Address = UChar(0)._$;
+		}
+		For(1, Length, 1, (It) =>
+		{
+			if(Value.charCodeAt(It))
+			{
+				CharactersMemory[Value.charCodeAt(It)] = Value[It];
+				UChar(Value.charCodeAt(It));
+			}
+			else
+			{
+				UChar(0);
+			}
+		});
+	}
+	get _()
+	{
+		return this.#Value;
+	}
+	set _(Value)
+	{
+		if(InstanceOf(String, Value) && Value.length <= this.Size)
+		{
+			const StringDecimalAddress = Number(this._$);
+			For(0, this.Size, 1, (It) =>
+			{
+				const CharacterAddress = DecimalToHex(StringDecimalAddress + (CHAR_BITS_SIZE*It), MEMORY_LIMIT_POWER/4);
+				Memory[CharacterAddress]._ = isNaN(Value.charCodeAt(It)) ? 0 : Value.charCodeAt(It);
+			});
+			this.#Value = Value;
+			return this.#Value;
+		}
+		Debug.Error(STRING, "Bring me a valid String!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return this.#Length;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+};
+
+const Float = -56.7;
+function Char(Value)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(Char, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + CHAR_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(Char, "Stack Overflow!");
+		return;
+	}
+	const C = new CHAR(Value);
+	Stack_Size += CHAR_BITS_SIZE;
+	Memory_Write_Cursor += CHAR_BITS_SIZE;
+	Memory[C._$] = C;
+
+	return C;
+}
+function UChar(Value)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(UChar, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + CHAR_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(UChar, "Stack Overflow!");
+		return;
+	}
+	const UC = new UCHAR(Value);
+	Stack_Size += CHAR_BITS_SIZE;
+	Memory_Write_Cursor += CHAR_BITS_SIZE;
+	Memory[UC._$] = UC;
+
+	return UC;
+}
+function Short(Value)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(Short, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + SHORT_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(Short, "Stack Overflow!");
+		return;
+	}
+	const S = new SHORT(Value);
+	Stack_Size += SHORT_BITS_SIZE;
+	Memory_Write_Cursor += SHORT_BITS_SIZE;
+	Memory[S._$] = S;
+
+	return S;
+}
+function Int(Value)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(Int, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + INT_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(Int, "Stack Overflow!");
+		return;
+	}
+	const I = new INT(Value);
+	Stack_Size += INT_BITS_SIZE;
+	Memory_Write_Cursor += INT_BITS_SIZE;
+	Memory[I._$] = I;
+
+	return I;
+}
+function GetMemoryBinary()
+{
+	const Binaries = [];
+	const ChunkSize = 4;
+	for (let Key in Memory)
+	{
+		const MBinary = Memory[Key].Binary;
+		let ChunksAmount = MBinary.length/ChunkSize;
+		For(0, ChunksAmount, 1, (It) =>
+		{
+			const BIndex = It*ChunkSize;
+			Binaries.push(MBinary.substring(BIndex, BIndex+ChunkSize));
+		});
+		if(ChunksAmount===0) Binaries.push(Memory[Key].Binary);
+	}
+
+	return Binaries.join(" ");
+}
