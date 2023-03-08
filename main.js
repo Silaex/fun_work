@@ -422,22 +422,123 @@ const INT_SIZE 		= { Min: -2_147_483_648, 	Max: 2_147_483_647 	};
 const UINT_SIZE 	= { Min: 0, 				Max: 4_294_967_295 	};
 const SHORT_SIZE 	= { Min: -32_768, 			Max: 32_767 		};
 const USHORT_SIZE 	= { Min: 0, 				Max: 65_535 		};
+const FLOAT_SIZE	= { Min: -340282346638528859811704183484516925440.0000000000000000, Max: 340282346638528859811704183484516925440.0000000000000000}
+const DOUBLE_SIZE	= { Min: -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.0000000000000000,
+						Max: 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.0000000000000000}
 
 const CHAR_BITS_SIZE 	= 8;
 const SHORT_BITS_SIZE 	= 16;
 const INT_BITS_SIZE 	= 32;
+const FLOAT_BITS_SIZE 	= 32;
+const DOUBLE_BITS_SIZE 	= 64;
 
 let Memory_Write_Cursor = 0;
 
-function FrontMemoryAdd(Var)
+function FreeMemory(Address)
 {
-	if(!InstancesOf([CHAR, SHORT, INT], Var))
+	const DataSize = Memory[Address].Size;
+	delete Memory[Address];
+	Log();
+	Stack_Size -= DataSize;
+	Log("Freed: " + Address + "/" + DataSize);
+}
+
+class FLOAT
+{
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
 	{
-		Debug.Error(FrontMemoryAdd, "[CHAR, SHORT, INT] One of this Var types please THANKS!");
-		return;
+		if(Value > FLOAT_SIZE.Max || Value < FLOAT_SIZE.Min)
+		{
+			Debug.Error(FLOAT, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary = FloatToBinary(Value, Float32_P);
+		this.#Address = MAddress;
 	}
-	
-	Front_Memory[Var._$] = Var;
+	get _()
+	{
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(FLOAT, "You try to access a data that does not exist");
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= FLOAT_SIZE.Max && Value >= FLOAT_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary = FloatToBinary(Value, Float32_P);
+			return this.#Value;
+		}
+		Debug.Error(FLOAT, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return FLOAT_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
+}
+
+class DOUBLE
+{
+	#Value;
+	#Address
+	#Binary
+	constructor(Value=0)
+	{
+		if(Value > DOUBLE_SIZE.Max || Value < DOUBLE_SIZE.Min)
+		{
+			Debug.Error(DOUBLE, "Out of bound");
+			return;
+		}
+		this.#Value = Value;
+		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		this.#Binary = FloatToBinary(Value, Float64_P);
+		this.#Address = MAddress;
+	}
+	get _()
+	{
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(DOUBLE, "You try to access a data that does not exist");
+	}
+	set _(Value)
+	{
+		if(InstanceOf(Number, Value) && Value <= DOUBLE_SIZE.Max && Value >= DOUBLE_SIZE.Min)
+		{
+			this.#Value = Value;
+			this.#Binary = FloatToBinary(Value, Float64_P);
+			return this.#Value;
+		}
+		Debug.Error(DOUBLE, "Bring me a valid Number!!!");
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+	get Size()
+	{
+		return DOUBLE_BITS_SIZE;
+	}
+	get Binary()
+	{
+		return this.#Binary;
+	}
 }
 
 class CHAR {
@@ -458,7 +559,11 @@ class CHAR {
 	}
 	get _()
 	{
-		return this.#Value;
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(CHAR, "You try to access a data that does not exist");
 	}
 	set _(Value)
 	{
@@ -501,7 +606,11 @@ class UCHAR {
 	}
 	get _()
 	{
-		return this.#Value;
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(UCHAR, "You try to access a data that does not exist");
 	}
 	set _(Value)
 	{
@@ -544,7 +653,11 @@ class SHORT {
 	}
 	get _()
 	{
-		return this.#Value;
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(SHORT, "You try to access a data that does not exist");
 	}
 	set _(Value)
 	{
@@ -587,7 +700,11 @@ class INT {
 	}
 	get _()
 	{
-		return this.#Value;
+		if(Memory[this.#Address] && Memory[this.#Address] === this)
+		{
+			return this.#Value;
+		}
+		Debug.Error(INT, "You try to access a data that does not exist");
 	}
 	set _(Value)
 	{
@@ -686,8 +803,157 @@ class STRING {
 	}
 };
 
-const Float = -56.7;
-function Char(Value)
+class ARRAY
+{
+	#Address
+	#Values
+	#Instance
+	#Length
+	#CustomMemoryWriteCursor
+	constructor(Instance, Length)
+	{	
+		const CustomConstructor = {
+			STRING: StringBuilder,
+			CHAR: Char,
+			UCHAR: UChar,
+			SHORT: Short,
+			INT: Int,
+			ARRAY: ArrayBuilder,
+			FLOAT: Float,
+			DOUBLE: Double,
+			READONLY: ReadOnly
+		};
+		const DataTypeSizes = {
+			STRING: CHAR_BITS_SIZE,
+			CHAR: CHAR_BITS_SIZE,
+			UCHAR: CHAR_BITS_SIZE,
+			SHORT: SHORT_BITS_SIZE,
+			INT: INT_BITS_SIZE,
+			FLOAT: FLOAT_BITS_SIZE,
+			DOUBLE: DOUBLE_BITS_SIZE,
+			READONLY: 64
+		};
+		if(!([STRING, CHAR, UCHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE, READONLY].includes(Instance)) || Length<=0)
+		{
+			Debug.Error(ARRAY, "Give me some valid data PLEASE!!!");
+		}
+		this.#CustomMemoryWriteCursor = Memory_Write_Cursor;
+		this.#Address = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
+		Memory_Write_Cursor += DataTypeSizes[Instance.name]*Length;
+		
+		this.#Values = Array(Length).fill(0).map(e => 
+		{
+			if([ARRAY, STRING, READONLY].includes(Instance))
+			{
+				return Instance;
+			}
+			else
+			{
+				return CustomConstructor[Instance.name]();
+			}
+		});
+		this.#Instance = Instance;
+		this.#Length = Length;
+	}
+	// Add is made by Copy and not by Reference
+	Add(ID, Value)
+	{
+		if(!InstanceOf(this.#Instance, Value))
+		{
+			Debug.Error(ARRAY, "Give me a " + this.#Instance.name + " please!");
+			return;
+		}
+		const OldValue = this.#Values[ID];
+		this.#Values[ID] = Value;
+		if(!InstanceOf(READONLY, Value))
+		{
+			FreeMemory(OldValue._$);
+		}
+		return this.#Values[ID];
+	}
+	get Length()
+	{
+		return this.#Length;
+	}
+	get _()
+	{
+		return [...this.#Values];
+	}
+	get _$()
+	{
+		return this.#Address;
+	}
+}
+
+// Why? Idk...
+class READONLY
+{
+	#Reference
+	#Instance
+	constructor(Variable)
+	{
+		if(!([STRING, CHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE].includes(Variable.constructor)))
+		{
+			Debug.Error(READONLY, "Please give a Variable!");
+			return;
+		}
+		this.#Reference = Variable._$;
+		this.#Instance = Variable.constructor;
+	}
+	get _()
+	{
+		return Memory[this.#Reference]._;
+	}
+	get _$()
+	{
+		return this.#Reference;
+	}
+	get Instance()
+	{
+		return this.#Instance;
+	}
+}
+
+function Float(Value=0.0)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(Float, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + FLOAT_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(Float, "Stack Overflow!");
+		return;
+	}
+	const F = new FLOAT(Value);
+	Stack_Size += FLOAT_BITS_SIZE;
+	Memory_Write_Cursor += FLOAT_BITS_SIZE;
+	Memory[F._$] = F;
+
+	return F;
+}
+
+function Double(Value=0.0)
+{
+	if(!InstanceOf(Number, Value))
+	{
+		Debug.Error(Double, "Give me a number please!");
+		return;
+	}
+	if(Stack_Size + DOUBLE_BITS_SIZE > MEMORY_LIMIT)
+	{
+		Debug.Error(Double, "Stack Overflow!");
+		return;
+	}
+	const D = new DOUBLE(Value);
+	Stack_Size += DOUBLE_BITS_SIZE;
+	Memory_Write_Cursor += DOUBLE_BITS_SIZE;
+	Memory[D._$] = D;
+
+	return D;
+}
+function Char(Value=0)
 {
 	if(!InstanceOf(Number, Value))
 	{
@@ -706,7 +972,7 @@ function Char(Value)
 
 	return C;
 }
-function UChar(Value)
+function UChar(Value=0)
 {
 	if(!InstanceOf(Number, Value))
 	{
@@ -725,7 +991,7 @@ function UChar(Value)
 
 	return UC;
 }
-function Short(Value)
+function Short(Value=0)
 {
 	if(!InstanceOf(Number, Value))
 	{
@@ -744,7 +1010,7 @@ function Short(Value)
 
 	return S;
 }
-function Int(Value)
+function Int(Value=0)
 {
 	if(!InstanceOf(Number, Value))
 	{
@@ -763,6 +1029,26 @@ function Int(Value)
 
 	return I;
 }
+function StringBuilder(Value="", Length=1)
+{
+	if(!InstanceOf(String, Variable) || !InstanceOf(Number, Length))
+	{
+		Debug.Error(StringBuilder, "Give me a String and a Number  please!");
+		return;
+	}
+	const Str = new STRING(Value, Length);
+	return Str;
+}
+function ArrayBuilder(Instance, Length=1)
+{
+	const Arr = new ARRAY(Instance, Length);
+	return Arr;
+}
+function ReadOnly(Variable)
+{
+	return new READONLY(Variable);
+}
+
 function GetMemoryBinary()
 {
 	const Binaries = [];
@@ -770,13 +1056,16 @@ function GetMemoryBinary()
 	for (let Key in Memory)
 	{
 		const MBinary = Memory[Key].Binary;
-		let ChunksAmount = MBinary.length/ChunkSize;
-		For(0, ChunksAmount, 1, (It) =>
+		if(MBinary !== undefined)
 		{
-			const BIndex = It*ChunkSize;
-			Binaries.push(MBinary.substring(BIndex, BIndex+ChunkSize));
-		});
-		if(ChunksAmount===0) Binaries.push(Memory[Key].Binary);
+			let ChunksAmount = MBinary.length/ChunkSize;
+			For(0, ChunksAmount, 1, (It) =>
+			{
+				const BIndex = It*ChunkSize;
+				Binaries.push(MBinary.substring(BIndex, BIndex+ChunkSize));
+			});
+			if(ChunksAmount===0) Binaries.push(Memory[Key].Binary);
+		}
 	}
 
 	return Binaries.join(" ");
