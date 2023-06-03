@@ -5,7 +5,7 @@
 const Log = console.log;
 const ErrorLog = console.error;
 const Table = console.table;
-const Result_Div = document.getElementById("result");
+const DESKTOP = document.getElementById("desktop");
 const MEMORY_LIMIT_POWER = 32;
 const MEMORY_LIMIT = 2**MEMORY_LIMIT_POWER;
 const Memory = {};
@@ -132,14 +132,22 @@ function BinaryToFloat(Float_Bin, Precision)
 	Debug.Error(BinaryToFloat, "GIVE ME A STRING AND A FLOAT PRECISION IDIOT!!!");
 }
 
-function DisplayResult(Result)
-{ 
-	Result_Div.innerHTML = Result;
-}
+/**
+ * @param {HTMLElement} Parent 
+ * @param {HTMLElement} _Element 
+ * @returns {HTMLElement} Parent
+ */
+function AppendElement(Parent, _Element)
+{
+	if(!InstanceOf(HTMLElement, Parent) || !InstanceOf(HTMLElement, _Element))
+	{
+		Debug.Error(AppendElement, "Please give me an HTMLElement!!!");
+		return;
+	}
 
-function DisplayAdd(Add)
-{ 
-	Result_Div.innerHTML += Add;
+	Parent.appendChild(_Element);
+
+	return Parent;
 }
 
 function ObjectLog(Obj)
@@ -416,6 +424,11 @@ function BinaryToHex(Binary, Size /* optional */)
 	return "0x" + [...Hex].reverse().join("");
 }
 
+function HexToDecimal(Hexadecimal)
+{
+	return Number(Hexadecimal);
+}
+
 const CHAR_SIZE 	= { Min: -128, 				Max: 127 			};
 const UCHAR_SIZE 	= { Min: 0, 				Max: 255 			};
 const INT_SIZE 		= { Min: -2_147_483_648, 	Max: 2_147_483_647 	};
@@ -438,9 +451,8 @@ function FreeMemory(Address)
 {
 	const DataSize = Memory[Address].Size;
 	delete Memory[Address];
-	Log();
 	Stack_Size -= DataSize;
-	Log("Freed: " + Address + "/" + DataSize);
+	Log("Freed: " + Address + " - " + DataSize + "bits");
 }
 
 class FLOAT
@@ -740,33 +752,50 @@ class STRING {
 	#Binary
 	constructor(Value="", Length=null)
 	{
-		if(!(InstanceOf(String, Value)) || !(InstanceOf(Number, Length)) || Length < 0 || Value.length > Length || Value.length < 0)
+		if(!(InstanceOf(String, Value)))
 		{
-			Debug.Error(STRING, "Wrong Initialization");
+			Debug.Error(STRING, "Give me something");
 			return;
 		}
-		this.#Length = Length;
+		
+		if(Length !== null && (Length < 0 || Value.length > Length || Value.length < 0))
+		{
+			Debug.Error(STRING, "Maximum Length doesn't match");
+			return;
+		}
+		if(Length === null)
+		{
+			Length = Value.length;
+		}
+		
 		this.#Value = Value;
-		this.#Binary = null;
+		this.#Length = Length;
+		this.#Binary = "";
 		if(Value.charCodeAt(0))
 		{
-			this.#Address = UChar(Value.charCodeAt(0))._$;
+			const Character = UChar(Value.charCodeAt(0));
+			this.#Binary = Character.Binary;
+			this.#Address = Character._$;
 			CharactersMemory[Value.charCodeAt(0)] = Value[0];
 		}
 		else
 		{
-			this.#Address = UChar(0)._$;
+			const Character = UChar(0);
+			this.#Binary = Character.Binary;
+			this.#Address = Character._$;
 		}
 		For(1, Length, 1, (It) =>
 		{
 			if(Value.charCodeAt(It))
 			{
 				CharactersMemory[Value.charCodeAt(It)] = Value[It];
-				UChar(Value.charCodeAt(It));
+				const Character = UChar(Value.charCodeAt(It));
+				this.#Binary += Character.Binary;
 			}
 			else
 			{
-				UChar(0);
+				const Character = UChar(0);
+				this.#Binary += Character.Binary;
 			}
 		});
 	}
@@ -778,12 +807,16 @@ class STRING {
 	{
 		if(InstanceOf(String, Value) && Value.length <= this.Size)
 		{
-			const StringDecimalAddress = Number(this._$);
+			// Convert from Hex to Decimal
+			const DecimalAddress = HexToDecimal(this._$);
+			let NewBinary = "";
 			For(0, this.Size, 1, (It) =>
 			{
-				const CharacterAddress = DecimalToHex(StringDecimalAddress + (CHAR_BITS_SIZE*It), MEMORY_LIMIT_POWER/4);
+				const CharacterAddress = DecimalToHex(DecimalAddress + (CHAR_BITS_SIZE*It), MEMORY_LIMIT_POWER/4);
 				Memory[CharacterAddress]._ = isNaN(Value.charCodeAt(It)) ? 0 : Value.charCodeAt(It);
+				NewBinary += DecimalToBin(isNaN(Value.charCodeAt(It)) ? 0 : Value.charCodeAt(It));
 			});
+			this.#Binary = NewBinary;
 			this.#Value = Value;
 			return this.#Value;
 		}
@@ -807,18 +840,18 @@ class ARRAY
 {
 	#Address
 	#Values
-	#Instance
+	#Type
 	#Length
 	#CustomMemoryWriteCursor
-	constructor(Instance, Length)
+	constructor(Type, Length)
 	{	
 		const CustomConstructor = {
-			STRING: StringBuilder,
+			STRING: _String,
 			CHAR: Char,
 			UCHAR: UChar,
 			SHORT: Short,
 			INT: Int,
-			ARRAY: ArrayBuilder,
+			ARRAY: _Array,
 			FLOAT: Float,
 			DOUBLE: Double,
 			READONLY: ReadOnly
@@ -833,43 +866,42 @@ class ARRAY
 			DOUBLE: DOUBLE_BITS_SIZE,
 			READONLY: 64
 		};
-		if(!([STRING, CHAR, UCHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE, READONLY].includes(Instance)) || Length<=0)
+		if(!([STRING, CHAR, UCHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE, READONLY].includes(Type)) || Length<=0)
 		{
 			Debug.Error(ARRAY, "Give me some valid data PLEASE!!!");
 		}
 		this.#CustomMemoryWriteCursor = Memory_Write_Cursor;
 		this.#Address = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
-		Memory_Write_Cursor += DataTypeSizes[Instance.name]*Length;
+		Memory_Write_Cursor += DataTypeSizes[Type.name]*Length;
 		
 		this.#Values = Array(Length).fill(0).map(e => 
 		{
-			if([ARRAY, STRING, READONLY].includes(Instance))
-			{
-				return Instance;
-			}
-			else
-			{
-				return CustomConstructor[Instance.name]();
-			}
+			return null;
 		});
-		this.#Instance = Instance;
+		this.#Type = Type;
 		this.#Length = Length;
 	}
 	// Add is made by Copy and not by Reference
 	Add(ID, Value)
 	{
-		if(!InstanceOf(this.#Instance, Value))
+		if(!InstanceOf(this.#Type, Value))
 		{
-			Debug.Error(ARRAY, "Give me a " + this.#Instance.name + " please!");
+			Debug.Error(ARRAY, "Give me a " + this.#Type.name + " please!");
 			return;
 		}
-		const OldValue = this.#Values[ID];
-		this.#Values[ID] = Value;
 		if(!InstanceOf(READONLY, Value))
 		{
-			FreeMemory(OldValue._$);
+			this.#Values[ID] = ReadOnly(Value);
 		}
 		return this.#Values[ID];
+	}
+	Get(ID)
+	{
+		return Memory[this.#Values[ID]._$];
+	}
+	get Type()
+	{
+		return this.#Type;
 	}
 	get Length()
 	{
@@ -889,16 +921,16 @@ class ARRAY
 class READONLY
 {
 	#Reference
-	#Instance
+	#Type
 	constructor(Variable)
 	{
-		if(!([STRING, CHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE].includes(Variable.constructor)))
+		if(!(Variable && [STRING, CHAR, SHORT, INT, ARRAY, FLOAT, DOUBLE].includes(Variable.constructor)))
 		{
-			Debug.Error(READONLY, "Please give a Variable!");
+			Debug.Error(READONLY, "Please give a Variable to reference to!");
 			return;
 		}
 		this.#Reference = Variable._$;
-		this.#Instance = Variable.constructor;
+		this.#Type = Variable.constructor;
 	}
 	get _()
 	{
@@ -908,9 +940,9 @@ class READONLY
 	{
 		return this.#Reference;
 	}
-	get Instance()
+	get Type()
 	{
-		return this.#Instance;
+		return this.#Type;
 	}
 }
 
@@ -1029,19 +1061,23 @@ function Int(Value=0)
 
 	return I;
 }
-function StringBuilder(Value="", Length=1)
+function _String(Value="", Length=null)
 {
-	if(!InstanceOf(String, Variable) || !InstanceOf(Number, Length))
+	if(!InstanceOf(String, Value))
 	{
-		Debug.Error(StringBuilder, "Give me a String and a Number  please!");
+		Debug.Error(_String, "Give me a String!");
 		return;
 	}
 	const Str = new STRING(Value, Length);
 	return Str;
 }
-function ArrayBuilder(Instance, Length=1)
+function _Array(Instance, Length=1, ...Values)
 {
 	const Arr = new ARRAY(Instance, Length);
+	For(0, Values.length, 1, (It) =>
+	{
+		Arr.Add(It, Values[It]);
+	});
 	return Arr;
 }
 function ReadOnly(Variable)

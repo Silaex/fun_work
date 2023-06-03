@@ -1,0 +1,8 @@
+Window:
+    ☐ - Make that HTMLElement are stored in computer memory @high
+    ✔ Add controls buttons and their actions (close, minimize, fullscreen) @started(23-04-19 13:26) @done(23-04-22 11:43) @lasted(2d22h17m37s)
+    ☐ Being able to add some stuff in the window
+
+Memory:
+    ☐ Need to build a heap memory and a "static" one for real storage @file:///D:\fun_work\exec.js
+    
