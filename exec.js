@@ -121,16 +121,22 @@
 					align-items: center;
 					justify-content: space-between;
 					width: 100%;
-					background: ${WindowColorBase};
+					background: ${WindowColorBase};	
 					box-sizing: border-box;
 					
 				`
 			});
 
 			// PRENDRE LA DIFF DE LA SOURIS ET LE BORD POUR ENSUITE APPLIQUER LA DIFF DANS LE DEPLACEMENT
+			const CursorOffset = {
+				X: Int(0),
+				Y: Int(0)
+			}
+
 			TitleBar.onclick = function(event)
 			{
 				MouseData.ElementClicked = TitleBar;
+				CursorOffsetX
 				Log(event)
 			}
 			WindowMouseMoveEventAdd((event) =>
