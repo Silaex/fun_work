@@ -314,6 +314,8 @@ class Debug
 			Formatted_Error_String += "------------------------------\n";
 			Debug.#Logs.push(Formatted_Error_String);
 		}
+		// Warning so we can trigger the "Debug.Log" if necessary
+		console.warn("An error has been added to the Debug Log. \n If you want to see it type 'Debug.Log' in the console.");
 	}
 	
 	static get Errors()
@@ -429,6 +431,12 @@ function HexToDecimal(Hexadecimal)
 	return Number(Hexadecimal);
 }
 
+/*
+
+==========================    TYPES AND STUFF....   ====================================
+
+*/
+
 const CHAR_SIZE 	= { Min: -128, 				Max: 127 			};
 const UCHAR_SIZE 	= { Min: 0, 				Max: 255 			};
 const INT_SIZE 		= { Min: -2_147_483_648, 	Max: 2_147_483_647 	};
@@ -447,12 +455,29 @@ const DOUBLE_BITS_SIZE 	= 64;
 
 let Memory_Write_Cursor = 0;
 
-function FreeMemory(Address)
+function FreeMemory(Data)
 {
-	const DataSize = Memory[Address].Size;
-	delete Memory[Address];
-	Stack_Size -= DataSize;
-	Log("Freed: " + Address + " - " + DataSize + "bits");
+	if(InstanceOf(ARRAY, Data))
+	{
+		const DataSize = Data.Length;
+		For(0, DataSize, 1, function(It) {
+			if (Data.Get(It)._ !== undefined || Data.Get(It)._ !== null)
+			{
+				//delete Memory[Data.Get(It)._$];
+				FreeMemory(Data.Get(It));
+			}
+		});
+		// Useless because Array does not fill any memory just take adress of the allocated address 
+		//Stack_Size -= DataSize;
+		//Log("[FreeMemory::_Array] Freed: " + Data._$ + " - " + (DataSize * Data.Type.Size) + "bits");
+	} 
+	else
+	{
+		const DataSize = Data.Size;
+		delete Memory[Data._$];
+		Stack_Size -= DataSize;
+		//Log(`[FreeMemory::${Data.constructor.name}] Freed: ` + Data._$ + " - " + DataSize + "bits");
+	}
 }
 
 class FLOAT
@@ -460,6 +485,8 @@ class FLOAT
 	#Value;
 	#Address
 	#Binary
+	static Size = FLOAT_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > FLOAT_SIZE.Max || Value < FLOAT_SIZE.Min)
@@ -497,7 +524,7 @@ class FLOAT
 	get Size()
 	{
 		return FLOAT_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;
@@ -509,6 +536,8 @@ class DOUBLE
 	#Value;
 	#Address
 	#Binary
+	static Size = DOUBLE_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > DOUBLE_SIZE.Max || Value < DOUBLE_SIZE.Min)
@@ -543,10 +572,9 @@ class DOUBLE
 	{
 		return this.#Address;
 	}
-	get Size()
-	{
+	get Size() {
 		return DOUBLE_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;
@@ -557,6 +585,8 @@ class CHAR {
 	#Value;
 	#Address
 	#Binary
+	static Size = CHAR_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > CHAR_SIZE.Max || Value < CHAR_SIZE.Min)
@@ -591,10 +621,9 @@ class CHAR {
 	{
 		return this.#Address;
 	}
-	get Size()
-	{
+	get Size() {
 		return CHAR_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;
@@ -604,6 +633,8 @@ class UCHAR {
 	#Value;
 	#Address
 	#Binary
+	static Size = CHAR_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > UCHAR_SIZE.Max || Value < UCHAR_SIZE.Min)
@@ -638,10 +669,9 @@ class UCHAR {
 	{
 		return this.#Address;
 	}
-	get Size()
-	{
+	get Size() {
 		return CHAR_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;
@@ -651,6 +681,8 @@ class SHORT {
 	#Value;
 	#Address
 	#Binary
+	static Size = SHORT_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > SHORT_SIZE.Max || Value < SHORT_SIZE.Min)
@@ -685,10 +717,9 @@ class SHORT {
 	{
 		return this.#Address;
 	}
-	get Size()
-	{
+	get Size() {
 		return SHORT_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;
@@ -698,6 +729,8 @@ class INT {
 	#Value;
 	#Address
 	#Binary
+	static Size = INT_BITS_SIZE;
+
 	constructor(Value=0)
 	{
 		if(Value > INT_SIZE.Max || Value < INT_SIZE.Min)
@@ -705,7 +738,7 @@ class INT {
 			Debug.Error(INT, "Out of bound");
 			return;
 		}
-		this.#Value = Value;
+		this.#Value = parseInt(Value);
 		const MAddress = DecimalToHex(Memory_Write_Cursor, MEMORY_LIMIT_POWER/4);
 		this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, INT_BITS_SIZE-1) : "0" + DecimalToBin(Value, INT_BITS_SIZE-1);
 		this.#Address = MAddress;
@@ -722,7 +755,7 @@ class INT {
 	{
 		if(InstanceOf(Number, Value) && Value <= INT_SIZE.Max && Value >= INT_SIZE.Min)
 		{
-			this.#Value = Value;
+			this.#Value = parseInt(Value);
 			this.#Binary = Value < 0 ? "1" + DecimalToBin(-Value, INT_BITS_SIZE-1) : "0" + DecimalToBin(Value, INT_BITS_SIZE-1);
 			return this.#Value;
 		}
@@ -732,10 +765,9 @@ class INT {
 	{
 		return this.#Address;
 	}
-	get Size()
-	{
+	get Size() {
 		return INT_BITS_SIZE;
-	}
+	};
 	get Binary()
 	{
 		return this.#Binary;

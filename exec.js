@@ -19,6 +19,7 @@
 	{
 		MouseData.LastClickPosition.x = e.x;
 		MouseData.LastClickPosition.y = e.y;
+		MouseData.ElementClicked = null;
 	});
 
 	window.addEventListener("mousedown", function(e)
@@ -87,6 +88,8 @@
 			this.#Width = Size.Get(0);
 			this.#Height = Size.Get(1);
 			this.#Title = Title._;
+
+			let IsFullscreen = false;
 			
 			const WindowColorBase = "#49D";
 			const WindowBackgroundColor = "#eee";
@@ -110,8 +113,9 @@
 			this.#Win.ontransitionend = () => { this.#Win.style.transitionDuration = `0s`; }
 			this.#Win.onmouseup = (event) =>
 			{
-				this.#Width._ = parseInt(event.currentTarget.style.width);
-				this.#Height._ = parseInt(event.currentTarget.style.height);
+				// Even though the Integer intialization does the Number[Float] => Int parsing we have to do this one because of the String.
+				// (removing the "px" in the dimension). String => Number, "654px" => 654
+				this.Dimension = _Array(INT, 2, Int(parseInt(event.currentTarget.style.width)), Int(parseInt(event.currentTarget.style.height)));
 			}
 
 			const TitleBar = CreateHTMLElement("div", 
@@ -123,7 +127,7 @@
 					width: 100%;
 					background: ${WindowColorBase};	
 					box-sizing: border-box;
-					
+					user-select: none;
 				`
 			});
 
@@ -133,18 +137,19 @@
 				Y: Int(0)
 			}
 
-			TitleBar.onclick = function(event)
+			// Here to set the offset of the user cursor!!!
+			// (and on the side.... setting that we are clicking on the TitleBar....)
+			TitleBar.onmousedown = function(event)
 			{
 				MouseData.ElementClicked = TitleBar;
-				CursorOffsetX
-				Log(event)
+				CursorOffset.X._ = event.layerX; 
+				CursorOffset.Y._ = event.layerY;
 			}
 			WindowMouseMoveEventAdd((event) =>
 			{
 				if(MouseData.ElementClicked === TitleBar && MouseData.MouseDown)
 				{
-					this.#Win.style.left = `${MouseData.CurrentPosition.x}px`;
-					this.#Win.style.top = `${MouseData.CurrentPosition.y}px`;
+					this.Position = _Array(INT, 2, Int(MouseData.CurrentPosition.x - CursorOffset.X._), Int(MouseData.CurrentPosition.y - CursorOffset.Y._));
 				}
 			});
 
@@ -194,13 +199,37 @@
 			/**
 			 * ================ FULL SCREEN PART ======================
 			 */
-			let IsFullscreen = false;
 			let LastPositionAndDimension = {
 				Width: this.#Width._,
 				Height: this.#Height._,
 				x: parseInt(this.#Win.style.left),
 				y: parseInt(this.#Win.style.top)
 			}
+			const NotFullscreen = () =>
+			{
+				IsFullscreen = false;
+
+				this.Position = _Array(INT, 2, Int(LastPositionAndDimension.x), Int(LastPositionAndDimension.y));
+				this.Dimension = _Array(INT, 2, Int(LastPositionAndDimension.Width), Int(LastPositionAndDimension.Height));
+				this.#Win.style.borderRadius = `6px`;
+				this.#Win.style.resize = `both`;
+			}
+
+			const Fullscreen = () =>
+			{
+				IsFullscreen = true;
+				this.#Win.style.borderRadius = `0`;
+				LastPositionAndDimension = {
+					Width: this.#Width._,
+					Height: this.#Height._,
+					x: parseInt(this.#Win.style.left),
+					y: parseInt(this.#Win.style.top)
+				}
+				this.Position = _Array(INT, 2, Int(0), Int(0));
+				this.Dimension = _Array(INT, 2, Int(DESKTOP.getBoundingClientRect().width), Int(DESKTOP.getBoundingClientRect().height));
+				this.#Win.style.resize = `none`;
+			}
+
 			const FullscreenButton = CreateHTMLElement("div", 
 			{
 				style: ControlButtonsGeneralStyle + `font-weight: bold;`,
@@ -210,32 +239,15 @@
 			FullscreenButton.onmouseleave = function() { this.style.backgroundColor = "transparent"; }
 			FullscreenButton.onmouseup = () => 
 			{ 
-				IsFullscreen = !IsFullscreen;
 				this.#Win.style.transitionDuration = `.1s`;
 
 				if(IsFullscreen)
 				{
-					this.#Win.style.borderRadius = `0`;
-					LastPositionAndDimension = {
-						Width: this.#Width._,
-						Height: this.#Height._,
-						x: parseInt(this.#Win.style.left),
-						y: parseInt(this.#Win.style.top)
-					}
-					this.#Win.style.left = `0px`;
-					this.#Win.style.width = `${DESKTOP.getBoundingClientRect().width}px`;
-					this.#Win.style.top = `0px`;
-					this.#Win.style.height = `${DESKTOP.getBoundingClientRect().height}px`;
-					this.#Win.style.resize = `none`;
+					NotFullscreen();
 				}
 				else
 				{
-					this.#Win.style.left = `${LastPositionAndDimension.x}px` ;
-					this.#Win.style.width = `${LastPositionAndDimension.Width}px`;
-					this.#Win.style.top = `${LastPositionAndDimension.y}px` ;
-					this.#Win.style.height = `${LastPositionAndDimension.Height}px`;
-					this.#Win.style.borderRadius = `6px`;
-					this.#Win.style.resize = `both`;
+					Fullscreen();
 				}
 			}
 			/**
@@ -284,6 +296,28 @@
 			this.#WinElements.TitleText.textContent = this.#Title._;
 			return;
 		}
+		set Dimension(Dim)
+		{
+			if(InstanceOf(ARRAY, Dim) && Dim.Type === INT)
+			{
+				this.#Width._ 			= Dim.Get(0)._ || this.#Width._;
+				this.#Height._ 			= Dim.Get(1)._ || this.#Height._;
+				this.#Win.style.width 	= `${Dim.Get(0)._}px` || this.#Width._;
+				this.#Win.style.height 	= `${Dim.Get(1)._}px` || this.#Height._;
+			}
+
+			FreeMemory(Dim);
+		}
+		set Position(Pos)
+		{
+			if(InstanceOf(ARRAY, Pos) && Pos.Type === INT)
+			{
+				this.#Win.style.left = `${Pos.Get(0)._}px` || this.#Win.style.left;
+				this.#Win.style.top = `${Pos.Get(1)._}px` || this.#Win.style.top;
+			}
+
+			FreeMemory(Pos);
+		}
 		get Win()
 		{
 			return this.#Win;
@@ -308,7 +342,7 @@
 			background: transparent; 
 			width: 100%;
 			height: 100%; 
-			font-family: TempleOS;
+			font-family: Liberation Mono;
 			color: black;
 			box-sizing: border-box;
 			border: none;
@@ -323,7 +357,7 @@
 			LastKeyPressed = event.key;
 			
 			const TabShortcut = CtrlKeyPressed && LastKeyPressed === " ";
-			const RunShortcut = AltKeyPressed && LastKeyPressed === "r";
+			const RunShortcut = AltKeyPressed && LastKeyPressed === "p";
 
 
 			if(LastKeyPressed === "Control") CtrlKeyPressed = true;
