@@ -268,6 +268,9 @@
 					width: 100%;
 					flex: 1;
 					background: ${WindowBackgroundColor};
+					padding: 4px;
+					color: #222;
+					box-sizing: border-box; 
 				`
 			});
 
@@ -289,6 +292,28 @@
 				ContentContainer,
 			}
 		}
+
+		// ========= METHODS ==========
+
+		AddContent(Element)
+		{
+			if(InstanceOf(STRING, Element))
+			{
+				AppendElement(this.#WinElements.ContentContainer, Element._);
+				return;
+			}
+
+			if(InstanceOf(HTMLElement, Element))
+			{
+				AppendElement(this.#WinElements.ContentContainer, Element);
+			}
+			else
+			{
+				Debug.Error(this.AddContent, "What you want to add must be a String or a HTMLElement");
+			}
+		}
+
+		// ======= SETTER / GETTER ==========
 
 		set Title(T)
 		{
@@ -330,6 +355,7 @@
 
 	const W = new _Window(_Array(INT, 2, Int(500), Int(350)));
 	Log(W)
+	W.AddContent(_String(GetMemoryBinary()));
 
 	W.Title = _String("This is my title!");
 

@@ -139,13 +139,13 @@ function BinaryToFloat(Float_Bin, Precision)
  */
 function AppendElement(Parent, _Element)
 {
-	if(!InstanceOf(HTMLElement, Parent) || !InstanceOf(HTMLElement, _Element))
+	if(!InstanceOf(HTMLElement, Parent) || (!InstanceOf(HTMLElement, _Element) && !InstanceOf(String, _Element)))
 	{
 		Debug.Error(AppendElement, "Please give me an HTMLElement!!!");
 		return;
 	}
 
-	Parent.appendChild(_Element);
+	Parent.append(_Element);
 
 	return Parent;
 }
